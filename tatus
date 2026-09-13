@@ -1,0 +1,166 @@
+warning: in the working copy of 'services/management-api/src/main/java/com/sentinel/management_api/alert/AlertActivityPoint.Java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'services/management-ui/package-lock.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'services/management-ui/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'services/management-ui/src/components/ui/bento-grid.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertActivityPoint.Java b/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertActivityPoint.Java[m
+[1mindex e69de29..3a9f844 100644[m
+[1m--- a/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertActivityPoint.Java[m
+[1m+++ b/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertActivityPoint.Java[m
+[36m@@ -0,0 +1,9 @@[m
+[32m+[m[32mpackage com.sentinel.management_api.alert;[m
+[32m+[m
+[32m+[m[32mimport java.time.Instant;[m
+[32m+[m
+[32m+[m[32mpublic record AlertActivityPoint([m
+[32m+[m[32m        Instant timestamp,[m
+[32m+[m[32m        long count[m
+[32m+[m[32m) {[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertStats.java b/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertStats.java[m
+[1mindex e69de29..9bdfbe6 100644[m
+[1m--- a/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertStats.java[m
+[1m+++ b/services/management-api/src/main/java/com/sentinel/management_api/alert/AlertStats.java[m
+[36m@@ -0,0 +1,11 @@[m
+[32m+[m[32mpackage com.sentinel.management_api.alert;[m
+[32m+[m
+[32m+[m[32mpublic record AlertStats([m
+[32m+[m[32m        long totalAlerts,[m
+[32m+[m[32m        long highSeverity,[m
+[32m+[m[32m        long criticalSeverity,[m
+[32m+[m[32m        double averageRiskScore,[m
+[32m+[m[32m        int highestRiskScore,[m
+[32m+[m[32m        long uniqueHosts[m
+[32m+[m[32m) {[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertController.java b/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertController.java[m
+[1mindex 56afff6..6683b8f 100644[m
+[1m--- a/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertController.java[m
+[1m+++ b/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertController.java[m
+[36m@@ -1,10 +1,6 @@[m
+ package com.sentinel.management_api.alert;[m
+ [m
+[31m-import org.springframework.data.domain.Sort;[m
+[31m-import org.springframework.web.bind.annotation.GetMapping;[m
+[31m-import org.springframework.web.bind.annotation.RequestMapping;[m
+[31m-import org.springframework.web.bind.annotation.RestController;[m
+[31m-[m
+[32m+[m[32mimport org.springframework.web.bind.annotation.*;[m
+ import java.util.List;[m
+ [m
+ @RestController[m
+[36m@@ -12,18 +8,52 @@[m [mimport java.util.List;[m
+ public class SecurityAlertController {[m
+ [m
+     private final SecurityAlertRepository repository;[m
+[32m+[m[32m    private final SecurityAlertService securityAlertService;[m
+ [m
+[31m-    public SecurityAlertController(SecurityAlertRepository repository) {[m
+[32m+[m[32m    public SecurityAlertController([m
+[32m+[m[32m            SecurityAlertRepository repository,[m
+[32m+[m[32m            SecurityAlertService securityAlertService[m
+[32m+[m[32m    ) {[m
+         this.repository = repository;[m
+[32m+[m[32m        this.securityAlertService = securityAlertService;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @GetMapping("/activity")[m
+[32m+[m[32m    public List<AlertActivityPoint> getActivity([m
+[32m+[m[32m            @RequestParam(defaultValue = "24") int hours[m
+[32m+[m[32m    ) {[m
+[32m+[m[32m        return securityAlertService.getActivity(hours);[m
+     }[m
+ [m
+[31m-    @GetMapping[m
+[31m-    public List<SecurityAlertEntity> getAlerts() {[m
+[31m-        return repository.findAll([m
+[31m-                Sort.by([m
+[31m-                        Sort.Direction.DESC,[m
+[31m-                        "createdAt"[m
+[31m-                )[m
+[32m+[m[32m    @GetMapping("/recent")[m
+[32m+[m[32m    public List<SecurityAlertEntity> getRecentAlerts() {[m
+[32m+[m[32m        return repository.findTop10ByOrderByCreatedAtDesc();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    @GetMapping("/stats")[m
+[32m+[m[32m    public AlertStats getStats() {[m
+[32m+[m
+[32m+[m[32m        long total = repository.count();[m
+[32m+[m
+[32m+[m[32m        long high =[m
+[32m+[m[32m                repository.countBySeverityIgnoreCase("HIGH");[m
+[32m+[m
+[32m+[m[32m        long critical =[m
+[32m+[m[32m                repository.countBySeverityIgnoreCase("CRITICAL");[m
+[32m+[m
+[32m+[m[32m        Double average = repository.findAverageRiskScore();[m
+[32m+[m
+[32m+[m[32m        Integer highest = repository.findHighestRiskScore();[m
+[32m+[m
+[32m+[m[32m        long hosts = repository.countUniqueHosts();[m
+[32m+[m
+[32m+[m[32m        return new AlertStats([m
+[32m+[m[32m                total,[m
+[32m+[m[32m                high,[m
+[32m+[m[32m                critical,[m
+[32m+[m[32m                average == null ? 0 : average,[m
+[32m+[m[32m                highest == null ? 0 : highest,[m
+[32m+[m[32m                hosts[m
+         );[m
+     }[m
+ }[m
+\ No newline at end of file[m
+[1mdiff --git a/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertRepository.java b/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertRepository.java[m
+[1mindex f219045..d05af96 100644[m
+[1m--- a/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertRepository.java[m
+[1m+++ b/services/management-api/src/main/java/com/sentinel/management_api/alert/SecurityAlertRepository.java[m
+[36m@@ -1,9 +1,56 @@[m
+ package com.sentinel.management_api.alert;[m
+ [m
+ import org.springframework.data.jpa.repository.JpaRepository;[m
+[32m+[m[32mimport org.springframework.data.jpa.repository.Query;[m
+[32m+[m[32mimport org.springframework.data.repository.query.Param;[m
+ [m
+[32m+[m[32mimport java.util.List;[m
+ import java.util.UUID;[m
+[32m+[m[32mimport java.time.Instant;[m
+ [m
+ public interface SecurityAlertRepository[m
+         extends JpaRepository<SecurityAlertEntity, UUID> {[m
+[32m+[m
+[32m+[m[32m    long countBySeverityIgnoreCase(String severity);[m
+[32m+[m
+[32m+[m[32m    @Query("""[m
+[32m+[m[32m        SELECT COUNT(DISTINCT a.hostId)[m
+[32m+[m[32m        FROM SecurityAlertEntity a[m
+[32m+[m[32m    """)[m
+[32m+[m[32m    long countUniqueHosts();[m
+[32m+[m
+[32m+[m[32m    @Query("""[m
+[32m+[m[32m        SELECT COALESCE(MAX(a.riskScore), 0)[m
+[32m+[m[32m        FROM SecurityAlertEntity a[m
+[32m+[m[32m    """)[m
+[32m+[m[32m    Integer findHighestRiskScore();[m
+[32m+[m
+[32m+[m[32m    @Query("""[m
+[32m+[m[32m        SELECT COALESCE(AVG(a.riskScore), 0)[m
+[32m+[m[32m        FROM SecurityAlertEntity a[m
+[32m+[m[32m    """)[m
+[32m+[m[32m    Double findAverageRiskScore();[m
+[32m+[m
+[32m+[m[32m    @Query("""[m
+[32m+[m[32m        SELECT[m
+[32m+[m[32m            a.hostId,[m
+[32m+[m[32m            COUNT(a),[m
+[32m+[m[32m            MAX(a.riskScore),[m
+[32m+[m[32m            MAX(a.createdAt)[m
+[32m+[m[32m        FROM SecurityAlertEntity a[m
+[32m+[m[32m        GROUP BY a.hostId[m
+[32m+[m[32m        ORDER BY MAX(a.createdAt) DESC[m
+[32m+[m[32m    """)[m
+[32m+[m[32m    List<Object[]> findEndpointSummaries();[m
+[32m+[m
+[32m+[m[32m    @Query("""[m
+
