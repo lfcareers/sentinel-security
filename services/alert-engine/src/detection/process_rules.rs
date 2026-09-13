@@ -16,6 +16,9 @@ pub fn evaluate_process(
     if let Some(alert) = detect_suspicious_shell_location(source_event_id, host_id, process) {
         alerts.push(alert);
     }
+    if let Some(alert) = detect_suspicious_parent_child(source_event_id, host_id, process) {
+        alerts.push(alert);
+    }
 
     alerts
 }
@@ -125,7 +128,51 @@ fn detect_suspicious_shell_location(
         timestamp: Utc::now(),
     })
 }
+fn detect_suspicious_parent_child(
+    source_event_id: Uuid,
+    host_id: &str,
+    process: &ProcessEvent,
+) -> Option<SecurityAlert> {
+    let child = process.executable_name.to_ascii_lowercase();
 
+    let suspicious_children = [
+        "powershell.exe",
+        "pwsh.exe",
+        "cmd.exe",
+        "wscript.exe",
+        "cscript.exe",
+    ];
+
+    if !suspicious_children.contains(&child.as_str()) {
+        return None;
+    }
+
+    let parent_pid = process.parent_process_id?;
+
+    Some(SecurityAlert {
+        alert_id: Uuid::new_v4(),
+        source_event_id,
+
+        rule_id: "SUSPICIOUS_PARENT_CHILD_RELATIONSHIP".into(),
+
+        title: "Suspicious parent-child process relationship".into(),
+
+        description: format!(
+            "{} was launched by parent PID {}",
+            process.executable_name, parent_pid
+        ),
+
+        risk_score: 55,
+        severity: Severity::Medium,
+
+        host_id: host_id.to_string(),
+        process_id: Some(process.process_id),
+
+        action: ResponseAction::Monitor,
+
+        timestamp: Utc::now(),
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,9 +182,9 @@ mod tests {
         let process = ProcessEvent {
             process_id: 99999,
             parent_process_id: Some(1234),
+            parent_executable_name: None,
 
             executable_name: "svchost.exe".to_string(),
-
             executable_path: Some(r"C:\Users\Public\Temp\svchost.exe".to_string()),
 
             cpu_usage: Some(1.0),
@@ -156,9 +203,9 @@ mod tests {
         let process = ProcessEvent {
             process_id: 1234,
             parent_process_id: Some(100),
+            parent_executable_name: None,
 
             executable_name: "svchost.exe".to_string(),
-
             executable_path: Some(r"C:\Windows\System32\svchost.exe".to_string()),
 
             cpu_usage: Some(0.0),
@@ -175,9 +222,9 @@ mod tests {
         let process = ProcessEvent {
             process_id: 5678,
             parent_process_id: Some(1000),
+            parent_executable_name: Some("explorer.exe".to_string()),
 
             executable_name: "powershell.exe".to_string(),
-
             executable_path: Some(r"C:\Users\Test\AppData\Local\Temp\powershell.exe".to_string()),
 
             cpu_usage: Some(1.0),
@@ -186,8 +233,41 @@ mod tests {
 
         let alerts = evaluate_process(Uuid::new_v4(), "TEST-HOST", &process);
 
-        assert_eq!(alerts.len(), 1);
-        assert_eq!(alerts[0].rule_id, "SUSPICIOUS_SHELL_LOCATION");
-        assert_eq!(alerts[0].risk_score, 70);
+        assert!(
+            alerts
+                .iter()
+                .any(|alert| alert.rule_id == "SUSPICIOUS_SHELL_LOCATION")
+        );
+
+        let shell_alert = alerts
+            .iter()
+            .find(|alert| alert.rule_id == "SUSPICIOUS_SHELL_LOCATION")
+            .expect("expected suspicious shell location alert");
+
+        assert_eq!(shell_alert.risk_score, 70);
+    }
+    #[test]
+    fn detects_suspicious_parent_child_relationship() {
+        let process = ProcessEvent {
+            process_id: 7777,
+            parent_process_id: Some(5555),
+            parent_executable_name: Some("chrome.exe".to_string()),
+
+            executable_name: "powershell.exe".to_string(),
+            executable_path: Some(
+                r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe".to_string(),
+            ),
+
+            cpu_usage: Some(1.0),
+            memory_bytes: Some(12_000_000),
+        };
+
+        let alerts = evaluate_process(Uuid::new_v4(), "TEST-HOST", &process);
+
+        assert!(
+            alerts
+                .iter()
+                .any(|alert| alert.rule_id == "SUSPICIOUS_PARENT_CHILD_RELATIONSHIP")
+        );
     }
 }

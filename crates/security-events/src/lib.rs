@@ -46,8 +46,11 @@ pub enum Severity {
 pub struct ProcessEvent {
     pub process_id: u32,
     pub parent_process_id: Option<u32>,
+    pub parent_executable_name: Option<String>,
+
     pub executable_name: String,
     pub executable_path: Option<String>,
+
     pub cpu_usage: Option<f32>,
     pub memory_bytes: Option<u64>,
 }
