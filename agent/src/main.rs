@@ -1,13 +1,13 @@
 mod media;
 mod telemetry;
+mod kafka;
 
+use kafka::producer::KafkaProducer;
 use std::path::Path;
 
-use media::detector::detect_media_type;
-use media::hashing::sha256_file;
-use security_events::{EventEnvelope, MediaScanRequest};
+use media::scanner::scan_directory;
+use security_events::EventEnvelope;
 use telemetry::process::collect_processes;
-use uuid::Uuid;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -16,13 +16,19 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("Sentinel Security Agent starting");
+    let kafka = KafkaProducer::new("localhost:9092")?;
+
+    tracing::info!("Kafka producer initialized");
+    // -------------------------------------------------
+    // PROCESS TELEMETRY
+    // -------------------------------------------------
 
     let processes = collect_processes();
 
     tracing::info!(
-        process_count = processes.len(),
-        "Windows process telemetry collected"
-    );
+    process_count = processes.len(),
+    "Windows process telemetry collected"
+);
 
     for process in processes.iter().take(10) {
         let event = EventEnvelope::new(
@@ -32,36 +38,39 @@ fn main() -> anyhow::Result<()> {
             process.clone(),
         );
 
+        let json = serde_json::to_string(&event)?;
+
+        kafka.publish(
+            "security.endpoint.process",
+            &event.event_id.to_string(),
+            &json,
+        )?;
+
         println!("{}", serde_json::to_string_pretty(&event)?);
     }
 
-    let test_media_path = Path::new(
-        r"C:\Users\Logan Foster\OneDrive\Documents\SpringBoot\sentinel-security\test-media\sample.png"
+    // -------------------------------------------------
+    // RECURSIVE MEDIA SCAN
+    // -------------------------------------------------
+
+    let scan_root = Path::new(
+        r"C:\Users\Logan Foster\OneDrive\Documents\SpringBoot\sentinel-security\test-media"
     );
 
-    if test_media_path.exists() {
-        if let Some(media_type) = detect_media_type(test_media_path) {
-            let hash = sha256_file(test_media_path)?;
-            let metadata = std::fs::metadata(test_media_path)?;
+    if scan_root.exists() {
+        tracing::info!(
+            path = %scan_root.display(),
+            "Starting recursive media scan"
+        );
 
-            let request = MediaScanRequest {
-                scan_id: Uuid::new_v4(),
+        let media_requests = scan_directory(scan_root);
 
-                file_name: test_media_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
+        tracing::info!(
+            media_count = media_requests.len(),
+            "Recursive media scan complete"
+        );
 
-                file_path: test_media_path
-                    .to_string_lossy()
-                    .to_string(),
-
-                sha256: hash,
-                media_type,
-                file_size_bytes: metadata.len(),
-            };
-
+        for request in media_requests {
             let event = EventEnvelope::new(
                 "media.scan.request",
                 "sentinel-agent",
@@ -73,8 +82,8 @@ fn main() -> anyhow::Result<()> {
         }
     } else {
         tracing::warn!(
-            path = %test_media_path.display(),
-            "Test media file not found"
+            path = %scan_root.display(),
+            "Media scan directory does not exist"
         );
     }
 
