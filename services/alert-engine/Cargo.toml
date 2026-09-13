@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+rdkafka = { version = "0.39.0", features = ["cmake-build"] }
+serde_json.workspace = true
+security-events = { path = "../../crates/security-events" }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+tokio = { version = "1.53.1", features = ["full"] }

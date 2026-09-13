@@ -1,10 +1,10 @@
+mod kafka;
 mod media;
 mod telemetry;
-mod kafka;
 
-use kafka::producer::KafkaProducer;
 use std::path::Path;
 
+use kafka::producer::KafkaProducer;
 use media::scanner::scan_directory;
 use security_events::EventEnvelope;
 use telemetry::process::collect_processes;
@@ -16,9 +16,11 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("Sentinel Security Agent starting");
+
     let kafka = KafkaProducer::new("localhost:9092")?;
 
     tracing::info!("Kafka producer initialized");
+
     // -------------------------------------------------
     // PROCESS TELEMETRY
     // -------------------------------------------------
@@ -26,9 +28,9 @@ fn main() -> anyhow::Result<()> {
     let processes = collect_processes();
 
     tracing::info!(
-    process_count = processes.len(),
-    "Windows process telemetry collected"
-);
+        process_count = processes.len(),
+        "Windows process telemetry collected"
+    );
 
     for process in processes.iter().take(10) {
         let event = EventEnvelope::new(
@@ -54,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     // -------------------------------------------------
 
     let scan_root = Path::new(
-        r"C:\Users\Logan Foster\OneDrive\Documents\SpringBoot\sentinel-security\test-media"
+        r"C:\Users\Logan Foster\OneDrive\Documents\SpringBoot\sentinel-security\test-media",
     );
 
     if scan_root.exists() {
@@ -78,6 +80,14 @@ fn main() -> anyhow::Result<()> {
                 request,
             );
 
+            let json = serde_json::to_string(&event)?;
+
+            kafka.publish(
+                "security.media.scan.request",
+                &event.event_id.to_string(),
+                &json,
+            )?;
+
             println!("{}", serde_json::to_string_pretty(&event)?);
         }
     } else {
@@ -87,11 +97,14 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
+    // -------------------------------------------------
+    // CONTROLLED DETECTION TEST
+    // -------------------------------------------------
+
     tracing::info!("Security telemetry generation complete");
 
     Ok(())
 }
-
 fn get_hostname() -> String {
     std::env::var("COMPUTERNAME")
         .or_else(|_| std::env::var("HOSTNAME"))

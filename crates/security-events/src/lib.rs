@@ -87,3 +87,27 @@ pub struct MediaScanResult {
     pub signals: Vec<DetectionSignal>,
     pub processing_time_ms: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ResponseAction {
+    Monitor,
+    Alert,
+    Review,
+    Block,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityAlert {
+    pub alert_id: Uuid,
+    pub source_event_id: Uuid,
+    pub rule_id: String,
+    pub title: String,
+    pub description: String,
+    pub risk_score: u8,
+    pub severity: Severity,
+    pub host_id: String,
+    pub process_id: Option<u32>,
+    pub action: ResponseAction,
+    pub timestamp: DateTime<Utc>,
+}

@@ -42,9 +42,7 @@ pub fn scan_directory(root: &Path) -> Vec<MediaScanRequest> {
                 .to_string_lossy()
                 .to_string(),
 
-            file_path: path
-                .to_string_lossy()
-                .to_string(),
+            file_path: path.to_string_lossy().to_string(),
 
             sha256: hash,
 

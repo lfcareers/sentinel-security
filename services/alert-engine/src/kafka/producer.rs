@@ -1,16 +1,17 @@
 use std::time::Duration;
 
+use anyhow::Result;
 use rdkafka::{
     config::ClientConfig,
     producer::{BaseProducer, BaseRecord, Producer},
 };
 
-pub struct KafkaProducer {
+pub struct AlertProducer {
     producer: BaseProducer,
 }
 
-impl KafkaProducer {
-    pub fn new(brokers: &str) -> Result<Self, rdkafka::error::KafkaError> {
+impl AlertProducer {
+    pub fn new(brokers: &str) -> Result<Self> {
         let producer: BaseProducer = ClientConfig::new()
             .set("bootstrap.servers", brokers)
             .set("message.timeout.ms", "5000")
@@ -19,7 +20,7 @@ impl KafkaProducer {
         Ok(Self { producer })
     }
 
-    pub fn publish(&self, topic: &str, key: &str, payload: &str) -> anyhow::Result<()> {
+    pub fn publish(&self, topic: &str, key: &str, payload: &str) -> Result<()> {
         self.producer
             .send(BaseRecord::to(topic).key(key).payload(payload))
             .map_err(|(error, _)| anyhow::anyhow!(error))?;

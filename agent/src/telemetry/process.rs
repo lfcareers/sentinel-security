@@ -12,18 +12,11 @@ pub fn collect_processes() -> Vec<ProcessEvent> {
         .map(|(pid, process)| ProcessEvent {
             process_id: pid.as_u32(),
 
-            parent_process_id: process
-                .parent()
-                .map(Pid::as_u32),
+            parent_process_id: process.parent().map(Pid::as_u32),
 
-            executable_name: process
-                .name()
-                .to_string_lossy()
-                .to_string(),
+            executable_name: process.name().to_string_lossy().to_string(),
 
-            executable_path: process
-                .exe()
-                .map(|path| path.to_string_lossy().to_string()),
+            executable_path: process.exe().map(|path| path.to_string_lossy().to_string()),
 
             cpu_usage: Some(process.cpu_usage()),
 
