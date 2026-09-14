@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { getAlerts } from "@/api/alerts"
 import type { SecurityAlert } from "@/types/security"
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid"
+import SentinelNavbar from "@/components/SentinelNavbar"
 
 type LiveSecurityEvent = {
     alertId: string
@@ -135,17 +136,25 @@ export default function Overview() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-neutral-950 p-6 text-white">
-                Establishing Sentinel telemetry pipeline...
+            <main className="min-h-screen bg-neutral-950 text-white">
+                <SentinelNavbar />
+
+                <div className="mx-auto max-w-7xl p-6">
+                    Establishing Sentinel telemetry pipeline...
+                </div>
             </main>
         )
     }
 
     if (error) {
         return (
-            <main className="min-h-screen bg-neutral-950 p-6 text-white">
-                <div className="rounded-xl border border-red-900 bg-red-950/40 p-4">
-                    {error}
+            <main className="min-h-screen bg-neutral-950 text-white">
+                <SentinelNavbar />
+
+                <div className="mx-auto max-w-7xl p-6">
+                    <div className="rounded-xl border border-red-900 bg-red-950/40 p-4">
+                        {error}
+                    </div>
                 </div>
             </main>
         )
@@ -153,8 +162,12 @@ export default function Overview() {
 
     return (
         <main className="min-h-screen bg-neutral-950 text-white">
-            <div className="mx-auto max-w-7xl p-6">
+            <SentinelNavbar />
 
+            <div
+                id="overview"
+                className="mx-auto max-w-7xl p-6"
+            >
                 <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
                     <div>
                         <div className="mb-3 flex items-center gap-3">
@@ -163,8 +176,8 @@ export default function Overview() {
                             </p>
 
                             <span className="rounded border border-neutral-800 px-2 py-1 text-[10px] uppercase tracking-wider text-neutral-500">
-                                Runtime Telemetry
-                            </span>
+                            Runtime Telemetry
+                        </span>
                         </div>
 
                         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
