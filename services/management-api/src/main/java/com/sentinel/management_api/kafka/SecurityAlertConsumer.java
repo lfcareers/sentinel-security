@@ -8,6 +8,13 @@ import com.sentinel.management_api.live.LiveEventService;
 import com.sentinel.management_api.live.LiveSecurityEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
+@ConditionalOnProperty(
+        name = "sentinel.kafka.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 
 @Component
 public class SecurityAlertConsumer {
