@@ -17,7 +17,8 @@ public class CorsConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://sentinel-management-ui.onrender.com"
+                "https://sentinel-management-ui.onrender.com",
+                "https://sentinel.loganfoster.net"
         ));
 
         config.setAllowedMethods(List.of(
