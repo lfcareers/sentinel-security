@@ -21,36 +21,47 @@ export function BentoGrid({
 }
 
 export function BentoGridItem({
-                                className,
-                                title,
-                                description,
+                                  className,
+                                  title,
+                                  description,
+                                  children,
                               }: {
-  className?: string;
-  title?: ReactNode;
-  description?: ReactNode;
+    className?: string
+    title?: string
+    description?: string
+    children?: ReactNode
 }) {
-  return (
-      <div
-          className={cn(
-              "group/bento row-span-1 flex flex-col justify-between",
-              "rounded-3xl border border-neutral-800 bg-neutral-950 p-6",
-              "shadow-sm transition duration-200 hover:shadow-xl",
-              className
-          )}
-      >
-        <div className="transition duration-200 group-hover/bento:translate-x-1">
-          {title && (
-              <div className="font-semibold text-neutral-100">
-                {title}
-              </div>
-          )}
+    return (
+        <div
+            className={[
+                "group/bento rounded-xl border border-neutral-800",
+                "bg-neutral-900/60 p-5",
+                "transition duration-200",
+                "hover:border-neutral-700 hover:bg-neutral-900/80",
+                className ?? "",
+            ].join(" ")}
+        >
+            {(title || description) && (
+                <div className="mb-4">
+                    {title && (
+                        <h3 className="font-semibold text-neutral-100">
+                            {title}
+                        </h3>
+                    )}
 
-          {description && (
-              <div className="mt-2 text-sm text-neutral-400">
-                {description}
-              </div>
-          )}
+                    {description && (
+                        <p className="mt-2 text-sm leading-6 text-neutral-400">
+                            {description}
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {children && (
+                <div className="min-w-0">
+                    {children}
+                </div>
+            )}
         </div>
-      </div>
-  );
+    )
 }
