@@ -3,6 +3,8 @@ package com.sentinel.management_api.alert;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,21 +21,22 @@ public class SecurityAlertService {
 
     public List<AlertActivityPoint> getActivity(int hours) {
 
-        // Prevent unreasonable requests.
         int safeHours = Math.max(1, Math.min(hours, 168));
 
         Instant now = Instant.now();
-        Instant start = now.minus(safeHours, ChronoUnit.HOURS);
+        Instant startInstant = now.minus(safeHours, ChronoUnit.HOURS);
 
-        // Retrieve alert timestamps from PostgreSQL.
-        List<Instant> alertTimes =
+        OffsetDateTime start =
+                OffsetDateTime.ofInstant(startInstant, ZoneOffset.UTC);
+
+        List<OffsetDateTime> alertTimes =
                 repository.findAlertTimesSince(start);
 
-        // Create one bucket for every hour.
-        Map<Instant, Long> buckets = new LinkedHashMap<>();
+        Map<Instant, Long> buckets =
+                new LinkedHashMap<>();
 
         Instant firstBucket =
-                start.truncatedTo(ChronoUnit.HOURS);
+                startInstant.truncatedTo(ChronoUnit.HOURS);
 
         Instant finalBucket =
                 now.truncatedTo(ChronoUnit.HOURS);
@@ -46,11 +49,11 @@ public class SecurityAlertService {
             buckets.put(bucket, 0L);
         }
 
-        // Put each database alert into its corresponding hour.
-        for (Instant alertTime : alertTimes) {
+        for (OffsetDateTime alertTime : alertTimes) {
 
             Instant bucket =
-                    alertTime.truncatedTo(ChronoUnit.HOURS);
+                    alertTime.toInstant()
+                             .truncatedTo(ChronoUnit.HOURS);
 
             if (buckets.containsKey(bucket)) {
                 buckets.put(
@@ -60,7 +63,6 @@ public class SecurityAlertService {
             }
         }
 
-        // Convert the buckets into objects React can consume.
         return buckets.entrySet()
                 .stream()
                 .map(entry ->
