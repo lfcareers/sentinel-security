@@ -22,10 +22,17 @@ async fn main() -> Result<()> {
         .init();
 
     tracing::info!("Sentinel Alert Engine starting");
+    let kafka_brokers = std::env::var("KAFKA_BOOTSTRAP_SERVERS")
+        .unwrap_or_else(|_| "localhost:9092".to_string());
+
+    tracing::info!(
+    brokers = %kafka_brokers,
+    "Configuring Kafka transport"
+    );
 
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", "sentinel-alert-engine")
-        .set("bootstrap.servers", "localhost:9092")
+        .set("bootstrap.servers", &kafka_brokers)
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
@@ -33,7 +40,7 @@ async fn main() -> Result<()> {
 
     consumer.subscribe(&["security.endpoint.process"])?;
 
-    let producer = AlertProducer::new("localhost:9092")?;
+    let producer = AlertProducer::new(&kafka_brokers)?;
 
     tracing::info!("Alert Kafka producer initialized");
 

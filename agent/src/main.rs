@@ -17,7 +17,15 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("Sentinel Security Agent starting");
 
-    let kafka = KafkaProducer::new("localhost:9092")?;
+    let kafka_brokers = std::env::var("KAFKA_BOOTSTRAP_SERVERS")
+        .unwrap_or_else(|_| "localhost:9092".to_string());
+
+    tracing::info!(
+    brokers = %kafka_brokers,
+    "Initializing Kafka producer"
+);
+
+    let kafka = KafkaProducer::new(&kafka_brokers)?;
 
     tracing::info!("Kafka producer initialized");
 
