@@ -11,6 +11,16 @@ import type { SecurityAlert } from "@/types/security"
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid"
 import SentinelNavbar from "@/components/SentinelNavbar"
 
+type RawTelemetryEvent = {
+    event_id: string
+    event_type: string
+    schema_version: number
+    source: string
+    host_id: string
+    timestamp: string
+    payload: Record<string, unknown>
+}
+
 type LiveSecurityEvent = {
     alertId: string
     severity: string
@@ -54,6 +64,9 @@ export default function Overview() {
         useState<EndpointSummary[] | null>(null)
     const [systemHealth, setSystemHealth] =
         useState<SystemHealth | null>(null)
+    const [rawEvents, setRawEvents] =
+        useState<RawTelemetryEvent[]>([])
+
 
     useEffect(() => {
         const loadDashboardData = async () => {
@@ -107,57 +120,72 @@ export default function Overview() {
             setStreamStatus("live")
         }
 
-        eventSource.addEventListener(
-            "security-alert",
-            (event: MessageEvent<string>) => {
-                try {
-                    const liveEvent: LiveSecurityEvent =
-                        JSON.parse(event.data)
+        const handleSecurityAlert = (event: MessageEvent<string>) => {
+            try {
+                const liveEvent: LiveSecurityEvent = JSON.parse(event.data)
 
-                    const alert: SecurityAlert = {
-                        alertId: liveEvent.alertId,
-                        severity: liveEvent.severity,
-                        hostId: liveEvent.hostId,
-                        title: liveEvent.title,
-                        description: liveEvent.description,
-                        riskScore: liveEvent.riskScore,
-                        action: liveEvent.action,
-                        createdAt: liveEvent.timestamp,
-                        processId: null,
-                        ruleId: "LIVE_STREAM",
-                        sourceEventId: liveEvent.alertId,
-                    }
-
-                    setAlerts((current) => {
-                        const withoutDuplicate = current.filter(
-                            (existing) =>
-                                existing.alertId !== alert.alertId
-                        )
-
-                        return [alert, ...withoutDuplicate]
-                    })
-
-                    setLastEventAt(liveEvent.timestamp)
-                    setStreamStatus("live")
-                } catch (err) {
-                    console.error(
-                        "Failed to parse Sentinel SSE event:",
-                        err
-                    )
+                const alert: SecurityAlert = {
+                    alertId: liveEvent.alertId,
+                    severity: liveEvent.severity,
+                    hostId: liveEvent.hostId,
+                    title: liveEvent.title,
+                    description: liveEvent.description,
+                    riskScore: liveEvent.riskScore,
+                    action: liveEvent.action,
+                    createdAt: liveEvent.timestamp,
+                    processId: null,
+                    ruleId: "LIVE_STREAM",
+                    sourceEventId: liveEvent.alertId,
                 }
+
+                setAlerts((current) => {
+                    const withoutDuplicate = current.filter(
+                        (existing) => existing.alertId !== alert.alertId
+                    )
+                    return [alert, ...withoutDuplicate]
+                })
+
+                setLastEventAt(liveEvent.timestamp)
+                setStreamStatus("live")
+            } catch (err) {
+                console.error("Failed to parse Sentinel SSE event:", err)
             }
-        )
+        }
+
+        const handleRawTelemetry = (event: MessageEvent<string>) => {
+            try {
+                const rawEvent: RawTelemetryEvent = JSON.parse(event.data)
+
+                setRawEvents((current) => {
+                    const withoutDuplicate = current.filter(
+                        (existing) => existing.event_id !== rawEvent.event_id
+                    )
+                    return [rawEvent, ...withoutDuplicate].slice(0, 100)
+                })
+
+                setLastEventAt(rawEvent.timestamp)
+                setStreamStatus("live")
+            } catch (err) {
+                console.error("Failed to parse raw Sentinel telemetry:", err)
+            }
+        }
+
+        eventSource.addEventListener("security-alert", handleSecurityAlert)
+        eventSource.addEventListener("raw-telemetry", handleRawTelemetry)
 
         eventSource.onerror = () => {
             setStreamStatus("disconnected")
         }
 
         return () => {
+            eventSource.removeEventListener("security-alert", handleSecurityAlert)
+            eventSource.removeEventListener("raw-telemetry", handleRawTelemetry)
             eventSource.close()
         }
     }, [])
 
     const latestAlert = alerts[0]
+    const latestRawEvent = rawEvents[0]
 
     if (loading) {
         return (
@@ -220,17 +248,17 @@ export default function Overview() {
                     <StreamIndicator status={streamStatus} />
                 </header>
 
-                    {loading && (
-                        <div className="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3 text-sm text-neutral-400">
-                            Loading persisted security telemetry...
-                        </div>
-                    )}
+                {loading && (
+                    <div className="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3 text-sm text-neutral-400">
+                        Loading persisted security telemetry...
+                    </div>
+                )}
 
-                    {error && (
-                        <div className="mb-6 rounded-xl border border-red-900/60 bg-red-950/20 px-4 py-3 text-sm text-red-300">
-                            Alert history unavailable: {error}
-                        </div>
-                    )}
+                {error && (
+                    <div className="mb-6 rounded-xl border border-red-900/60 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+                        Alert history unavailable: {error}
+                    </div>
+                )}
 
                 <BentoGrid className="mx-auto max-w-7xl">
 
@@ -240,10 +268,10 @@ export default function Overview() {
                         title="Live Telemetry Inspector"
                         className="md:col-span-3"
                     >
-                        {latestAlert ? (
+                        {latestRawEvent || latestAlert ? (
                             <div className="grid gap-0 overflow-hidden rounded-xl border border-neutral-800 lg:grid-cols-2">
 
-                                {/* Raw side */}
+                                {/* Raw telemetry side */}
 
                                 <div className="min-w-0 border-b border-neutral-800 bg-black/30 lg:border-b-0 lg:border-r">
                                     <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
@@ -253,77 +281,107 @@ export default function Overview() {
                                             </p>
 
                                             <p className="mt-1 font-mono text-[10px] text-neutral-600">
-                                                security.alert.generated
+                                                {latestRawEvent?.event_type ??
+                                                    "Awaiting telemetry"}
                                             </p>
                                         </div>
 
                                         <span className="font-mono text-[10px] text-emerald-400">
-                                            KAFKA
-                                        </span>
+                        KAFKA
+                    </span>
                                     </div>
 
-                                    <div className="overflow-x-auto p-5">
-                                        <RawEvent alert={latestAlert} />
+                                    <div className="max-h-[420px] overflow-auto p-5">
+                                        {latestRawEvent ? (
+                                            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-neutral-300">
+                            {JSON.stringify(
+                                latestRawEvent,
+                                null,
+                                2
+                            )}
+                        </pre>
+                                        ) : (
+                                            <p className="font-mono text-xs text-neutral-600">
+                                                Waiting for raw endpoint telemetry...
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Human-readable side */}
+                                {/* Interpreted detection side */}
 
                                 <div className="bg-neutral-900/30 p-5">
-                                    <div className="mb-5 flex items-center justify-between">
-                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
-                                            Interpreted Detection
-                                        </p>
+                                    {latestAlert ? (
+                                        <>
+                                            <div className="mb-5 flex items-center justify-between">
+                                                <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
+                                                    Interpreted Detection
+                                                </p>
 
-                                        <SeverityBadge
-                                            severity={latestAlert.severity}
-                                        />
-                                    </div>
+                                                <SeverityBadge
+                                                    severity={latestAlert.severity}
+                                                />
+                                            </div>
 
-                                    <div className="mb-6">
-                                        <div className="flex items-end gap-2">
-                                            <span className="text-5xl font-semibold tracking-tight">
-                                                {latestAlert.riskScore}
-                                            </span>
+                                            <div className="mb-6">
+                                                <div className="flex items-end gap-2">
+                                <span className="text-5xl font-semibold tracking-tight">
+                                    {latestAlert.riskScore}
+                                </span>
 
-                                            <span className="pb-1 text-sm text-neutral-600">
-                                                / 100 risk
-                                            </span>
+                                                    <span className="pb-1 text-sm text-neutral-600">
+                                    / 100 risk
+                                </span>
+                                                </div>
+                                            </div>
+
+                                            <h2 className="text-xl font-medium text-neutral-100">
+                                                {latestAlert.title}
+                                            </h2>
+
+                                            <p className="mt-3 text-sm leading-6 text-neutral-400">
+                                                {latestAlert.description}
+                                            </p>
+
+                                            <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-neutral-800 pt-5 text-sm">
+                                                <TelemetryField
+                                                    label="Endpoint"
+                                                    value={latestAlert.hostId}
+                                                />
+
+                                                <TelemetryField
+                                                    label="Process"
+                                                    value={
+                                                        latestAlert.processId?.toString() ??
+                                                        "stream event"
+                                                    }
+                                                />
+
+                                                <TelemetryField
+                                                    label="Rule"
+                                                    value={latestAlert.ruleId}
+                                                />
+
+                                                <TelemetryField
+                                                    label="Action"
+                                                    value={latestAlert.action}
+                                                />
+                                            </dl>
+                                        </>
+                                    ) : (
+                                        <div className="flex min-h-[260px] items-center justify-center">
+                                            <div>
+                                                <p className="text-sm text-neutral-400">
+                                                    No interpreted detection
+                                                </p>
+
+                                                <p className="mt-2 max-w-sm text-xs leading-5 text-neutral-600">
+                                                    Raw telemetry is live. Awaiting a
+                                                    detection from the Sentinel alert engine.
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    <h2 className="text-xl font-medium text-neutral-100">
-                                        {latestAlert.title}
-                                    </h2>
-
-                                    <p className="mt-3 text-sm leading-6 text-neutral-400">
-                                        {latestAlert.description}
-                                    </p>
-
-                                    <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-neutral-800 pt-5 text-sm">
-                                        <TelemetryField
-                                            label="Endpoint"
-                                            value={latestAlert.hostId}
-                                        />
-
-                                        <TelemetryField
-                                            label="Process"
-                                            value={
-                                                latestAlert.processId?.toString() ??
-                                                "stream event"
-                                            }
-                                        />
-
-                                        <TelemetryField
-                                            label="Rule"
-                                            value={latestAlert.ruleId}
-                                        />
-
-                                        <TelemetryField
-                                            label="Action"
-                                            value={latestAlert.action}
-                                        />
-                                    </dl>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -510,105 +568,6 @@ export default function Overview() {
             </div>
         </main>
     )
-}
-
-function RawEvent({
-                      alert,
-                  }: {
-    alert: SecurityAlert
-}) {
-    return (
-        <pre className="font-mono text-xs leading-6">
-            <span className="text-neutral-600">{"{"}</span>
-            {"\n  "}
-            <JsonKey>host_id</JsonKey>
-            <JsonSeparator />
-            <JsonString value={alert.hostId} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>process_id</JsonKey>
-            <JsonSeparator />
-            <JsonNumber value={alert.processId ?? "null"} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>risk_score</JsonKey>
-            <JsonSeparator />
-            <JsonNumber value={alert.riskScore} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>severity</JsonKey>
-            <JsonSeparator />
-            <JsonString value={alert.severity} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>rule_id</JsonKey>
-            <JsonSeparator />
-            <JsonString value={alert.ruleId} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>action</JsonKey>
-            <JsonSeparator />
-            <JsonString value={alert.action} />
-            <JsonComma />
-
-            {"\n  "}
-            <JsonKey>timestamp</JsonKey>
-            <JsonSeparator />
-            <JsonString value={alert.createdAt} />
-
-            {"\n"}
-            <span className="text-neutral-600">{"}"}</span>
-        </pre>
-    )
-}
-
-function JsonKey({
-                     children,
-                 }: {
-    children: string
-}) {
-    return (
-        <span className="text-sky-300">
-            "{children}"
-        </span>
-    )
-}
-
-function JsonSeparator() {
-    return <span className="text-neutral-600">: </span>
-}
-
-function JsonString({
-                        value,
-                    }: {
-    value: string
-}) {
-    return (
-        <span className="text-emerald-300">
-            "{value}"
-        </span>
-    )
-}
-
-function JsonNumber({
-                        value,
-                    }: {
-    value: number | string
-}) {
-    return (
-        <span className="text-amber-300">
-            {value}
-        </span>
-    )
-}
-
-function JsonComma() {
-    return <span className="text-neutral-600">,</span>
 }
 
 function Metric({

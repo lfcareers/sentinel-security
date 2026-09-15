@@ -51,4 +51,23 @@ public class LiveEventService {
             }
         }
     }
+    public void publishRawTelemetry(String payload) {
+
+        for (SseEmitter emitter : emitters) {
+
+            try {
+
+                emitter.send(
+                        SseEmitter.event()
+                                .name("raw-telemetry")
+                                .data(payload)
+                );
+
+            } catch (IOException exception) {
+
+                emitter.complete();
+                emitters.remove(emitter);
+            }
+        }
+    }
 }
