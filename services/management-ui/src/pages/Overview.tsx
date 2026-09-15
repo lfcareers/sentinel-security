@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { getAlerts } from "@/api/alerts"
+import {
+    getAlertStats,
+    getEndpoints,
+    getSystemHealth,
+} from "@/api/sentinelApi"
+
+import type { SystemHealth } from "@/api/sentinelApi"
 import type { SecurityAlert } from "@/types/security"
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid"
 import SentinelNavbar from "@/components/SentinelNavbar"
@@ -20,6 +27,21 @@ type StreamStatus = "connecting" | "live" | "disconnected"
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080"
 
+type AlertStats = {
+    totalAlerts: number
+    highSeverity: number
+    criticalSeverity: number
+    averageRiskScore: number
+    highestRiskScore: number
+    uniqueHosts: number
+}
+
+type EndpointSummary = {
+    hostId: string
+    alertCount: number
+    highestRisk: number
+    lastActivity: string
+}
 export default function Overview() {
     const [alerts, setAlerts] = useState<SecurityAlert[]>([])
     const [loading, setLoading] = useState(true)
@@ -27,6 +49,35 @@ export default function Overview() {
     const [streamStatus, setStreamStatus] =
         useState<StreamStatus>("connecting")
     const [lastEventAt, setLastEventAt] = useState<string | null>(null)
+    const [stats, setStats] = useState<AlertStats | null>(null)
+    const [endpoints, setEndpoints] =
+        useState<EndpointSummary[] | null>(null)
+    const [systemHealth, setSystemHealth] =
+        useState<SystemHealth | null>(null)
+
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                const [statsData, endpointData, healthData] =
+                    await Promise.all([
+                        getAlertStats(),
+                        getEndpoints(),
+                        getSystemHealth(),
+                    ])
+
+                setStats(statsData)
+                setEndpoints(endpointData)
+                setSystemHealth(healthData)
+            } catch (error) {
+                console.error(
+                    "Failed to load Sentinel dashboard data:",
+                    error
+                )
+            }
+        }
+
+        void loadDashboardData()
+    }, [])
 
     useEffect(() => {
         async function loadAlerts() {
@@ -106,32 +157,6 @@ export default function Overview() {
         }
     }, [])
 
-    const highestRisk = useMemo(() => {
-        if (alerts.length === 0) return 0
-
-        return Math.max(
-            ...alerts.map((alert) => alert.riskScore)
-        )
-    }, [alerts])
-
-    const highSeverityCount = useMemo(
-        () =>
-            alerts.filter(
-                (alert) =>
-                    alert.severity === "HIGH" ||
-                    alert.severity === "CRITICAL"
-            ).length,
-        [alerts]
-    )
-
-    const uniqueHosts = useMemo(
-        () =>
-            new Set(
-                alerts.map((alert) => alert.hostId)
-            ).size,
-        [alerts]
-    )
-
     const latestAlert = alerts[0]
 
     if (loading) {
@@ -194,6 +219,18 @@ export default function Overview() {
 
                     <StreamIndicator status={streamStatus} />
                 </header>
+
+                    {loading && (
+                        <div className="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3 text-sm text-neutral-400">
+                            Loading persisted security telemetry...
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="mb-6 rounded-xl border border-red-900/60 bg-red-950/20 px-4 py-3 text-sm text-red-300">
+                            Alert history unavailable: {error}
+                        </div>
+                    )}
 
                 <BentoGrid className="mx-auto max-w-7xl">
 
@@ -300,21 +337,21 @@ export default function Overview() {
 
                     <BentoGridItem title="Risk">
                         <Metric
-                            value={highestRisk}
+                            value={stats?.highestRiskScore ?? "—"}
                             label="highest observed"
                         />
                     </BentoGridItem>
 
                     <BentoGridItem title="Detections">
                         <Metric
-                            value={alerts.length}
+                            value={stats?.totalAlerts ?? "—"}
                             label="persisted events"
                         />
                     </BentoGridItem>
 
                     <BentoGridItem title="Endpoints">
                         <Metric
-                            value={uniqueHosts}
+                            value={endpoints?.length ?? "—"}
                             label="reporting hosts"
                         />
                     </BentoGridItem>
@@ -354,9 +391,28 @@ export default function Overview() {
 
                     <BentoGridItem title="High Severity">
                         <Metric
-                            value={highSeverityCount}
-                            label="high / critical"
+                            value={stats?.highSeverity ?? "—"}
+                            label="high severity alerts"
                         />
+                    </BentoGridItem>
+
+                    <BentoGridItem title="System Health">
+                        <div className="mt-2 space-y-3">
+                            <HealthRow
+                                label="API"
+                                status={systemHealth?.api}
+                            />
+
+                            <HealthRow
+                                label="Database"
+                                status={systemHealth?.database}
+                            />
+
+                            <HealthRow
+                                label="Kafka"
+                                status={systemHealth?.kafka}
+                            />
+                        </div>
                     </BentoGridItem>
 
                     {/* Detection feed INSIDE Bento */}
@@ -559,7 +615,7 @@ function Metric({
                     value,
                     label,
                 }: {
-    value: number
+    value: number | string
     label: string
 }) {
     return (
@@ -612,6 +668,40 @@ function PipelineArrow() {
         <span className="text-neutral-700">
             &gt;
         </span>
+    )
+}
+
+function HealthRow({
+                       label,
+                       status,
+                   }: {
+    label: string
+    status?: string
+}) {
+    const healthy = status === "UP"
+
+    return (
+        <div className="flex items-center justify-between">
+            <span className="text-xs text-neutral-500">
+                {label}
+            </span>
+
+            <div className="flex items-center gap-2">
+                <span
+                    className={`h-2 w-2 rounded-full ${
+                        status == null
+                            ? "bg-neutral-600"
+                            : healthy
+                                ? "bg-emerald-400"
+                                : "bg-red-400"
+                    }`}
+                />
+
+                <span className="font-mono text-xs text-neutral-300">
+                    {status ?? "CHECKING"}
+                </span>
+            </div>
+        </div>
     )
 }
 
