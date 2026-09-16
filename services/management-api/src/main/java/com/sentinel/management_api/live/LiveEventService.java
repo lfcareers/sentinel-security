@@ -15,7 +15,6 @@ public class LiveEventService {
 
     public SseEmitter subscribe() {
 
-        // No server-side timeout for now.
         SseEmitter emitter = new SseEmitter(0L);
 
         emitters.add(emitter);
@@ -28,6 +27,18 @@ public class LiveEventService {
 
         emitter.onError(error ->
                 emitters.remove(emitter));
+
+        try {
+            emitter.send(
+                    SseEmitter.event()
+                            .name("connected")
+                            .data("sentinel-stream-ready")
+                            .reconnectTime(3000)
+            );
+        } catch (IOException exception) {
+            emitters.remove(emitter);
+            emitter.completeWithError(exception);
+        }
 
         return emitter;
     }
