@@ -3,23 +3,17 @@ import { getAlerts } from "@/api/alerts"
 import {
     getAlertStats,
     getEndpoints,
+    getRecentTelemetry,
     getSystemHealth,
 } from "@/api/sentinelApi"
 
-import type { SystemHealth } from "@/api/sentinelApi"
+import type {
+    RawTelemetryEvent,
+    SystemHealth,
+} from "@/api/sentinelApi"
 import type { SecurityAlert } from "@/types/security"
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid"
 import SentinelNavbar from "@/components/SentinelNavbar"
-
-type RawTelemetryEvent = {
-    event_id: string
-    event_type: string
-    schema_version: number
-    source: string
-    host_id: string
-    timestamp: string
-    payload: Record<string, unknown>
-}
 
 type LiveSecurityEvent = {
     alertId: string
@@ -90,6 +84,44 @@ export default function Overview() {
         }
 
         void loadDashboardData()
+    }, [])
+
+    useEffect(() => {
+        const loadRecentTelemetry = async () => {
+            try {
+                const persistedEvents =
+                    await getRecentTelemetry(10)
+
+                setRawEvents((currentEvents) => {
+                    const eventsById = new Map<
+                        string,
+                        RawTelemetryEvent
+                    >()
+
+                    for (const event of [
+                        ...currentEvents,
+                        ...persistedEvents,
+                    ]) {
+                        eventsById.set(event.event_id, event)
+                    }
+
+                    return Array.from(eventsById.values())
+                        .sort(
+                            (left, right) =>
+                                new Date(right.timestamp).getTime() -
+                                new Date(left.timestamp).getTime()
+                        )
+                        .slice(0, 100)
+                })
+            } catch (error) {
+                console.error(
+                    "Failed to load persisted telemetry:",
+                    error
+                )
+            }
+        }
+
+        void loadRecentTelemetry()
     }, [])
 
     useEffect(() => {
