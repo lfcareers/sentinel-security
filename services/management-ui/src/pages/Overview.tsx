@@ -60,30 +60,39 @@ export default function Overview() {
         useState<SystemHealth | null>(null)
     const [rawEvents, setRawEvents] =
         useState<RawTelemetryEvent[]>([])
+    const [selectedRawEventId, setSelectedRawEventId] =
+        useState<string | null>(null)
+
+    const [followLive, setFollowLive] = useState(true)
 
 
     useEffect(() => {
-        const loadDashboardData = async () => {
-            try {
-                const [statsData, endpointData, healthData] =
-                    await Promise.all([
-                        getAlertStats(),
-                        getEndpoints(),
-                        getSystemHealth(),
-                    ])
-
-                setStats(statsData)
-                setEndpoints(endpointData)
-                setSystemHealth(healthData)
-            } catch (error) {
+        void getAlertStats()
+            .then(setStats)
+            .catch((dashboardError) => {
                 console.error(
-                    "Failed to load Sentinel dashboard data:",
-                    error
+                    "Failed to load alert statistics:",
+                    dashboardError
                 )
-            }
-        }
+            })
 
-        void loadDashboardData()
+        void getEndpoints()
+            .then(setEndpoints)
+            .catch((dashboardError) => {
+                console.error(
+                    "Failed to load endpoint summaries:",
+                    dashboardError
+                )
+            })
+
+        void getSystemHealth()
+            .then(setSystemHealth)
+            .catch((dashboardError) => {
+                console.error(
+                    "Failed to load system health:",
+                    dashboardError
+                )
+            })
     }, [])
 
     useEffect(() => {
@@ -216,34 +225,20 @@ export default function Overview() {
         }
     }, [])
 
+    useEffect(() => {
+        if (followLive && rawEvents.length > 0) {
+            setSelectedRawEventId(rawEvents[0].event_id)
+        }
+    }, [rawEvents, followLive])
+
     const latestAlert = alerts[0]
     const latestRawEvent = rawEvents[0]
 
-    if (loading) {
-        return (
-            <main className="min-h-screen bg-neutral-950 text-white">
-                <SentinelNavbar />
-
-                <div className="mx-auto max-w-7xl p-6">
-                    Establishing Sentinel telemetry pipeline...
-                </div>
-            </main>
-        )
-    }
-
-    if (error) {
-        return (
-            <main className="min-h-screen bg-neutral-950 text-white">
-                <SentinelNavbar />
-
-                <div className="mx-auto max-w-7xl p-6">
-                    <div className="rounded-xl border border-red-900 bg-red-950/40 p-4">
-                        {error}
-                    </div>
-                </div>
-            </main>
-        )
-    }
+    const selectedRawEvent =
+        rawEvents.find(
+            (event) =>
+                event.event_id === selectedRawEventId
+        ) ?? latestRawEvent
 
     return (
         <main className="min-h-screen bg-neutral-950 text-white">
@@ -300,127 +295,109 @@ export default function Overview() {
                         title="Live Telemetry Inspector"
                         className="md:col-span-3"
                     >
-                        {latestRawEvent || latestAlert ? (
-                            <div className="grid gap-0 overflow-hidden rounded-xl border border-neutral-800 lg:grid-cols-2">
+                        <div className="overflow-hidden rounded-xl border border-neutral-800 bg-black/20">
+                            <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+                                <div>
+                                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
+                                        Kafka Event Stream
+                                    </p>
 
-                                {/* Raw telemetry side */}
-
-                                <div className="min-w-0 border-b border-neutral-800 bg-black/30 lg:border-b-0 lg:border-r">
-                                    <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
-                                                Raw Event
-                                            </p>
-
-                                            <p className="mt-1 font-mono text-[10px] text-neutral-600">
-                                                {latestRawEvent?.event_type ??
-                                                    "Awaiting telemetry"}
-                                            </p>
-                                        </div>
-
-                                        <span className="font-mono text-[10px] text-emerald-400">
-                        KAFKA
-                    </span>
-                                    </div>
-
-                                    <div className="max-h-[420px] overflow-auto p-5">
-                                        {latestRawEvent ? (
-                                            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-neutral-300">
-                            {JSON.stringify(
-                                latestRawEvent,
-                                null,
-                                2
-                            )}
-                        </pre>
-                                        ) : (
-                                            <p className="font-mono text-xs text-neutral-600">
-                                                Waiting for raw endpoint telemetry...
-                                            </p>
-                                        )}
-                                    </div>
+                                    <p className="mt-1 font-mono text-[10px] text-neutral-600">
+                                        {rawEvents.length} events available
+                                    </p>
                                 </div>
 
-                                {/* Interpreted detection side */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFollowLive(true)
 
-                                <div className="bg-neutral-900/30 p-5">
-                                    {latestAlert ? (
-                                        <>
-                                            <div className="mb-5 flex items-center justify-between">
-                                                <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">
-                                                    Interpreted Detection
-                                                </p>
+                                        if (latestRawEvent) {
+                                            setSelectedRawEventId(
+                                                latestRawEvent.event_id
+                                            )
+                                        }
+                                    }}
+                                    className={`rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider ${
+                                        followLive
+                                            ? "border-emerald-800 bg-emerald-950/40 text-emerald-400"
+                                            : "border-neutral-700 text-neutral-400 hover:border-neutral-500"
+                                    }`}
+                                >
+                                    {followLive ? "Following Live" : "Resume Live"}
+                                </button>
+                            </div>
 
-                                                <SeverityBadge
-                                                    severity={latestAlert.severity}
-                                                />
-                                            </div>
-
-                                            <div className="mb-6">
-                                                <div className="flex items-end gap-2">
-                                <span className="text-5xl font-semibold tracking-tight">
-                                    {latestAlert.riskScore}
-                                </span>
-
-                                                    <span className="pb-1 text-sm text-neutral-600">
-                                    / 100 risk
-                                </span>
-                                                </div>
-                                            </div>
-
-                                            <h2 className="text-xl font-medium text-neutral-100">
-                                                {latestAlert.title}
-                                            </h2>
-
-                                            <p className="mt-3 text-sm leading-6 text-neutral-400">
-                                                {latestAlert.description}
-                                            </p>
-
-                                            <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-neutral-800 pt-5 text-sm">
-                                                <TelemetryField
-                                                    label="Endpoint"
-                                                    value={latestAlert.hostId}
-                                                />
-
-                                                <TelemetryField
-                                                    label="Process"
-                                                    value={
-                                                        latestAlert.processId?.toString() ??
-                                                        "stream event"
-                                                    }
-                                                />
-
-                                                <TelemetryField
-                                                    label="Rule"
-                                                    value={latestAlert.ruleId}
-                                                />
-
-                                                <TelemetryField
-                                                    label="Action"
-                                                    value={latestAlert.action}
-                                                />
-                                            </dl>
-                                        </>
+                            <div className="grid min-h-[420px] lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.6fr)]">
+                                <div className="max-h-[420px] overflow-y-auto border-b border-neutral-800 lg:border-b-0 lg:border-r">
+                                    {rawEvents.length === 0 ? (
+                                        <p className="p-4 font-mono text-xs text-neutral-600">
+                                            Waiting for Kafka telemetry...
+                                        </p>
                                     ) : (
-                                        <div className="flex min-h-[260px] items-center justify-center">
-                                            <div>
-                                                <p className="text-sm text-neutral-400">
-                                                    No interpreted detection
-                                                </p>
+                                        rawEvents.map((event) => {
+                                            const selected =
+                                                event.event_id ===
+                                                selectedRawEvent?.event_id
 
-                                                <p className="mt-2 max-w-sm text-xs leading-5 text-neutral-600">
-                                                    Raw telemetry is live. Awaiting a
-                                                    detection from the Sentinel alert engine.
-                                                </p>
-                                            </div>
-                                        </div>
+                                            return (
+                                                <button
+                                                    key={event.event_id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedRawEventId(
+                                                            event.event_id
+                                                        )
+                                                        setFollowLive(false)
+                                                    }}
+                                                    className={`flex w-full items-center justify-between gap-4 border-b border-neutral-900 px-4 py-3 text-left transition-colors ${
+                                                        selected
+                                                            ? "bg-emerald-950/20"
+                                                            : "hover:bg-neutral-900/70"
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="truncate font-mono text-xs text-neutral-300">
+                                                            {event.event_type}
+                                                        </p>
+
+                                                        <p className="mt-1 truncate font-mono text-[10px] text-neutral-600">
+                                                            {event.host_id}
+                                                            {event.kafka_offset !==
+                                                            undefined
+                                                                ? ` · offset ${event.kafka_offset}`
+                                                                : ""}
+                                                        </p>
+                                                    </div>
+
+                                                    <time className="shrink-0 font-mono text-[10px] text-neutral-600">
+                                                        {new Date(
+                                                            event.timestamp
+                                                        ).toLocaleTimeString()}
+                                                    </time>
+                                                </button>
+                                            )
+                                        })
+                                    )}
+                                </div>
+
+                                <div className="max-h-[420px] overflow-auto p-5">
+                                    {selectedRawEvent ? (
+                                        <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-neutral-300">
+                {JSON.stringify(
+                    selectedRawEvent,
+                    null,
+                    2
+                )}
+            </pre>
+                                    ) : (
+                                        <p className="font-mono text-xs text-neutral-600">
+                                            Select an event to inspect its payload.
+                                        </p>
                                     )}
                                 </div>
                             </div>
-                        ) : (
-                            <div className="rounded-xl border border-neutral-800 p-8 text-sm text-neutral-500">
-                                Waiting for endpoint telemetry.
-                            </div>
-                        )}
+                        </div>
                     </BentoGridItem>
 
                     {/* KPI cards */}
@@ -618,26 +595,6 @@ function Metric({
             <p className="mt-2 text-xs text-neutral-500">
                 {label}
             </p>
-        </div>
-    )
-}
-
-function TelemetryField({
-                            label,
-                            value,
-                        }: {
-    label: string
-    value: string
-}) {
-    return (
-        <div className="min-w-0">
-            <dt className="text-[10px] uppercase tracking-[0.16em] text-neutral-600">
-                {label}
-            </dt>
-
-            <dd className="mt-1 truncate font-mono text-xs text-neutral-300">
-                {value}
-            </dd>
         </div>
     )
 }
