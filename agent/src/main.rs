@@ -7,7 +7,7 @@ use std::path::Path;
 use kafka::producer::KafkaProducer;
 use media::scanner::scan_directory;
 use security_events::EventEnvelope;
-use telemetry::process::collect_processes;
+use sentinel_scanner::collect_processes;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -17,13 +17,13 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!("Sentinel Security Agent starting");
 
-    let kafka_brokers = std::env::var("KAFKA_BOOTSTRAP_SERVERS")
-        .unwrap_or_else(|_| "localhost:9092".to_string());
+    let kafka_brokers =
+        std::env::var("KAFKA_BOOTSTRAP_SERVERS").unwrap_or_else(|_| "localhost:9092".to_string());
 
     tracing::info!(
-    brokers = %kafka_brokers,
-    "Initializing Kafka producer"
-);
+        brokers = %kafka_brokers,
+        "Initializing Kafka producer"
+    );
 
     let kafka = KafkaProducer::new(&kafka_brokers)?;
 

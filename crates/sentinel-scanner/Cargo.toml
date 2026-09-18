@@ -6,7 +6,10 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+security-events = { path = "../security-events" }
+
 chrono.workspace = true
 serde.workspace = true
 uuid.workspace = true
+sysinfo.workspace = true
 thiserror = "2"
