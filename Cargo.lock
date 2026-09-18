@@ -637,6 +637,7 @@ dependencies = [
  "chrono",
  "security-events",
  "serde",
+ "serde_json",
  "sysinfo",
  "thiserror",
  "uuid",

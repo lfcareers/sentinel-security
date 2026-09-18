@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 security-events = { path = "../security-events" }
-
+serde_json.workspace = true
 chrono.workspace = true
 serde.workspace = true
 uuid.workspace = true
