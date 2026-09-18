@@ -15,6 +15,12 @@ import type { SecurityAlert } from "@/types/security"
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid"
 import SentinelNavbar from "@/components/SentinelNavbar"
 
+const WINDOWS_DOWNLOAD_URL =
+    "https://github.com/lfcareers/sentinel-security/releases/latest/download/Sentinel-Security-0.1.0-x64-setup.exe"
+
+const RELEASE_NOTES_URL =
+    "https://github.com/lfcareers/sentinel-security/releases/tag/v0.1.0"
+
 type LiveSecurityEvent = {
     alertId: string
     severity: string
@@ -288,7 +294,57 @@ export default function Overview() {
                 )}
 
                 <BentoGrid className="mx-auto max-w-7xl">
+                    <section className="mt-6 overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-neutral-950 to-neutral-950 p-6 shadow-2xl shadow-emerald-950/20">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="max-w-2xl">
+                                <div className="mb-3 flex items-center gap-2">
+                                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.9)]" />
 
+                                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                    Windows Community Preview
+                </span>
+                                </div>
+
+                                <h2 className="text-2xl font-semibold tracking-tight text-white">
+                                    Run Sentinel on your computer
+                                </h2>
+
+                                <p className="mt-3 text-sm leading-6 text-neutral-400">
+                                    Download the native Windows application and perform a fast
+                                    endpoint process scan powered locally by Rust. Scan results
+                                    remain on your device.
+                                </p>
+
+                                <p className="mt-3 text-xs text-neutral-500">
+                                    Version 0.1.0 · Windows x64 · Community Preview
+                                </p>
+                            </div>
+
+                            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                                <a
+                                    href={WINDOWS_DOWNLOAD_URL}
+                                    className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-neutral-950"
+                                >
+                                    Download for Windows
+                                </a>
+
+                                <a
+                                    href={RELEASE_NOTES_URL}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex min-h-12 items-center justify-center rounded-xl border border-neutral-700 bg-neutral-900 px-6 py-3 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-950"
+                                >
+                                    Release notes
+                                </a>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 border-t border-neutral-800 pt-4 text-xs leading-5 text-neutral-500">
+                            Sentinel 0.1.0 is an unsigned preview. Windows SmartScreen may display
+                            an unknown-publisher warning. SHA-256 checksums are available on the
+                            release page.
+                        </div>
+                    </section>
                     {/* Primary telemetry inspector */}
 
                     <BentoGridItem
