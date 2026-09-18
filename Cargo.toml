@@ -3,6 +3,7 @@ resolver = "3"
 
 members = [
     "agent",
+    "apps/sentinel-desktop/src-tauri",
     "crates/security-events",
     "crates/sentinel-scanner",
     "services/alert-engine",
