@@ -4,6 +4,7 @@ resolver = "3"
 members = [
     "agent",
     "crates/security-events",
+    "crates/sentinel-scanner",
     "services/alert-engine",
 ]
 
