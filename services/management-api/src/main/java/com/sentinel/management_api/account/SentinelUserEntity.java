@@ -25,6 +25,12 @@ public class SentinelUserEntity {
     @Column(name = "display_name", nullable = false, length = 255)
     private String displayName;
 
+    @Column(name = "board_display_name", length = 80)
+    private String boardDisplayName;
+
+    @Column(name = "email_notifications_enabled", nullable = false)
+    private boolean emailNotificationsEnabled;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -60,5 +66,21 @@ public class SentinelUserEntity {
     public void recordSignIn(String displayName, OffsetDateTime signedInAt) {
         this.displayName = displayName;
         this.lastSignInAt = signedInAt;
+    }
+
+    public String getBoardDisplayName() {
+        return boardDisplayName;
+    }
+
+    public boolean isEmailNotificationsEnabled() {
+        return emailNotificationsEnabled;
+    }
+
+    public void updateSettings(
+            String boardDisplayName,
+            boolean emailNotificationsEnabled
+    ) {
+        this.boardDisplayName = boardDisplayName;
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
     }
 }
