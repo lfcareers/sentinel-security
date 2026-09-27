@@ -48,7 +48,7 @@ public class SecurityConfig {
                         })
                         .failureHandler((request, response, exception) -> {
                             log.error("Sentinel OAuth login failed", exception);
-                            response.sendRedirect("/login?error");
+                            response.sendRedirect(frontendUrl + "/sign-in?error=oauth");
                         })
                 )
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/ingest/alerts"))
