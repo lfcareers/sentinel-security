@@ -53,4 +53,23 @@ public class SentinelUserService {
                 "Authenticated identity has no Sentinel account"
         ));
     }
+
+    @Transactional
+    public SentinelUserEntity updateSettings(
+            OidcUser identity,
+            String boardDisplayName,
+            boolean emailNotificationsEnabled
+    ) {
+        String name = boardDisplayName == null ? "" : boardDisplayName.trim();
+
+        if (name.length() > 80 || name.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException(
+                    "Board display name must be at most 80 characters and contain no control characters"
+            );
+        }
+
+        SentinelUserEntity user = findAccount(identity);
+        user.updateSettings(name.isEmpty() ? null : name, emailNotificationsEnabled);
+        return repository.save(user);
+    }
 }
