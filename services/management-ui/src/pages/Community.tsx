@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import CommunityPosts from "@/components/CommunityPosts"
 
 type AccountInfo = {
     userId: string
@@ -20,7 +21,6 @@ export default function Community() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState("")
     const [needsSignIn, setNeedsSignIn] = useState(false)
-    const [draft, setDraft] = useState("")
 
     useEffect(() => {
         const controller = new AbortController()
@@ -42,15 +42,18 @@ export default function Community() {
                 }
 
                 const data = (await response.json()) as AccountInfo
-                setAccount(data)
-            } catch (error) {
-                if (controller.signal.aborted) return
 
-                setError(
-                    error instanceof Error
-                        ? error.message
-                        : "Sentinel is unavailable. Please try again."
-                )
+                if (!controller.signal.aborted) {
+                    setAccount(data)
+                }
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    setError(
+                        error instanceof Error
+                            ? error.message
+                            : "Sentinel is unavailable. Please try again."
+                    )
+                }
             } finally {
                 if (!controller.signal.aborted) {
                     setLoading(false)
@@ -59,12 +62,8 @@ export default function Community() {
         }
 
         void loadAccount()
-
         return () => controller.abort()
     }, [])
-
-    const communityName =
-        account?.boardDisplayName || "Sentinel member"
 
     return (
         <div className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -93,7 +92,9 @@ export default function Community() {
                             <a
                                 key={item.href}
                                 href={item.href}
-                                aria-current={item.href === "/app" ? "page" : undefined}
+                                aria-current={
+                                    item.href === "/app" ? "page" : undefined
+                                }
                                 className={`whitespace-nowrap rounded-lg px-4 py-3 text-sm ${
                                     item.href === "/app"
                                         ? "bg-emerald-500/10 text-emerald-300"
@@ -165,68 +166,7 @@ export default function Community() {
                         </p>
                     )}
 
-                    {account && (
-                        <>
-                            <section className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-                                <div className="mb-5 flex items-center gap-3">
-                  <span
-                      aria-hidden="true"
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-300"
-                  >
-                    {communityName.charAt(0).toUpperCase()}
-                  </span>
-
-                                    <div>
-                                        <p className="font-medium">{communityName}</p>
-                                        <p className="text-xs text-neutral-500">
-                                            Share with the community
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <label
-                                    htmlFor="community-draft"
-                                    className="mb-2 block text-sm text-neutral-300"
-                                >
-                                    What are you investigating?
-                                </label>
-
-                                <textarea
-                                    id="community-draft"
-                                    value={draft}
-                                    onChange={(event) => setDraft(event.target.value)}
-                                    maxLength={10000}
-                                    rows={5}
-                                    placeholder="Ask a question or share a cybersecurity lesson…"
-                                    className="w-full resize-y rounded-lg border border-neutral-700 bg-neutral-950 p-3 text-white placeholder:text-neutral-600 focus:outline-emerald-400"
-                                />
-
-                                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                                    <p className="text-xs text-neutral-500">
-                                        Preview only. Drafts are not saved yet.
-                                    </p>
-
-                                    <button
-                                        type="button"
-                                        disabled
-                                        className="rounded-lg bg-emerald-400 px-4 py-2 font-medium text-neutral-950 opacity-40"
-                                    >
-                                        Publish post
-                                    </button>
-                                </div>
-                            </section>
-
-                            <section className="mt-6 rounded-xl border border-neutral-800 p-8 text-center">
-                                <h2 className="!text-xl !text-white">
-                                    Your community starts here
-                                </h2>
-
-                                <p className="mt-3 text-sm text-neutral-400">
-                                    Post publishing and the shared discussion feed are next.
-                                </p>
-                            </section>
-                        </>
-                    )}
+                    {account && <CommunityPosts />}
                 </main>
 
                 <aside className="space-y-5">
