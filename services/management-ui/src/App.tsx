@@ -2,6 +2,7 @@ import Overview from "@/pages/Overview"
 import Account from "@/pages/Account"
 import SignIn from "@/pages/SignIn"
 import Community from "@/pages/Community"
+import UserProfile from "@/pages/UserProfile"
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -36,7 +37,7 @@ function App() {
       return <Account />
 
     case "/app/profile":
-      return <ComingSoon title="My profile" />
+      return <UserProfile />
 
     case "/app/mitre":
       return <ComingSoon title="MITRE ATT&CK library" />
