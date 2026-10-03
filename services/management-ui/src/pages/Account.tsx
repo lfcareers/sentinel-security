@@ -94,25 +94,75 @@ export default function Account() {
     return (
         <div className="min-h-screen bg-neutral-950 text-white">
             <SentinelNavbar />
+
             <main className="mx-auto max-w-3xl px-6 py-20">
-                <h1 className="text-3xl font-semibold">Your Sentinel account</h1>
+                {account && (
+                    <nav
+                        aria-label="Member navigation"
+                        className="mb-8 flex flex-wrap gap-3"
+                    >
+                        <a
+                            href="/app"
+                            className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950"
+                        >
+                            Community feed
+                        </a>
+
+                        <a
+                            href="/app/profile"
+                            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-white"
+                        >
+                            My profile
+                        </a>
+
+                        <a
+                            href="/app/mitre"
+                            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-white"
+                        >
+                            MITRE ATT&CK
+                        </a>
+
+                        <a
+                            href="/app/security"
+                            className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-white"
+                        >
+                            Security workspace
+                        </a>
+                    </nav>
+                )}
+
+                <h1 className="text-3xl font-semibold">
+                    Your Sentinel account
+                </h1>
 
                 {account ? (
                     <>
-                        <p className="mt-5">Signed in as {account.displayName}.</p>
+                        <p className="mt-5">
+                            Signed in as {account.displayName}.
+                        </p>
+
                         <p className="mt-2 text-sm text-neutral-500">
                             Account ID: {account.userId}
                         </p>
 
-                        <form onSubmit={saveSettings} className="mt-10 space-y-5">
+                        <form
+                            onSubmit={saveSettings}
+                            className="mt-10 space-y-5"
+                        >
                             <div>
-                                <label htmlFor="boardName" className="block text-sm">
+                                <label
+                                    htmlFor="boardName"
+                                    className="block text-sm"
+                                >
                                     Board display name
                                 </label>
+
                                 <input
                                     id="boardName"
                                     value={boardName}
-                                    onChange={(event) => setBoardName(event.target.value)}
+                                    onChange={(event) =>
+                                        setBoardName(event.target.value)
+                                    }
                                     maxLength={80}
                                     className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900 px-4 py-2 text-white"
                                 />
@@ -138,15 +188,24 @@ export default function Account() {
                             </button>
                         </form>
 
-                        {status && <p role="status" className="mt-5">{status}</p>}
+                        {status && (
+                            <p role="status" className="mt-5">
+                                {status}
+                            </p>
+                        )}
 
                         {csrf && (
-                            <form action="/logout" method="post" className="mt-8">
+                            <form
+                                action="/logout"
+                                method="post"
+                                className="mt-8"
+                            >
                                 <input
                                     type="hidden"
                                     name={csrf.parameterName}
                                     value={csrf.token}
                                 />
+
                                 <button
                                     type="submit"
                                     className="rounded-lg border border-neutral-600 px-4 py-2"
@@ -158,7 +217,10 @@ export default function Account() {
                     </>
                 ) : (
                     <>
-                        <p className="mt-5 text-neutral-400">{status}</p>
+                        <p className="mt-5 text-neutral-400">
+                            {status}
+                        </p>
+
                         <a
                             href="/oauth2/authorization/sentinel"
                             className="mt-8 inline-block rounded-lg bg-emerald-500 px-4 py-2 font-medium text-neutral-950"
